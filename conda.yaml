@@ -1,0 +1,8 @@
+name: zendata
+channels:
+  - defaults
+dependencies:
+  - pip=22.1.2
+  - python=3.9.12
+  - pip:
+    - -r requirements.txt
