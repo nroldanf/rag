@@ -15,12 +15,11 @@ logger.info(config)
 
 tracking_uri = "http://127.0.0.1:5001"
 mlflow.set_tracking_uri(tracking_uri)
-experiment = mlflow.set_experiment(experiment_name="zendata")
+experiment = mlflow.set_experiment(experiment_name="zendata-document-retrieval")
 
 if __name__ == "__main__":
-
     # TODO: Make this an entry to the script
-    query = "Check the HTML code and Network data to see if there is info for cookie consent"
+    query = "Please identify whether not the above text contains PII and list them with its respective category"
 
     embedding_function = OpenAIEmbeddings(
         chunk_size=config["embedding"]["chunk_size"], openai_api_key=openai_api_key
@@ -42,7 +41,7 @@ if __name__ == "__main__":
         template="{instruction}\n\nInput:\n{context}",
     )
 
-    llm_chain = LLMChain(llm=llm, prompt=prompt_template)
+    # llm_chain = LLMChain(llm=llm, prompt=prompt_template)
     docs = db.similarity_search(query=query, k=2, filter={})
 
     with mlflow.start_run(experiment_id=experiment.experiment_id):
@@ -53,7 +52,7 @@ if __name__ == "__main__":
             inputs=inputs, outputs=[result], prompts=[prompt_template.template]
         )
         mlflow.log_param("embedding", config["embedding"]["type"])
-        mlflow.log_param("vectordb", config["vectodb"]["type"])
+        mlflow.log_param("vectordb", config["vectordb"]["type"])
         mlflow.log_param("chunk_size", config["embedding"]["chunk_size"])
         mlflow.log_param("llm", config["llm"]["model"])
         mlflow.log_param("temperature", config["llm"]["temperature"])

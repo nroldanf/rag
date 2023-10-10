@@ -1,6 +1,6 @@
 import os
+import time
 import warnings
-from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import Chroma
 from langchain.text_splitter import Language
 from langchain.document_loaders.generic import GenericLoader
@@ -8,7 +8,7 @@ from langchain.document_loaders.parsers import LanguageParser
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 warnings.filterwarnings("ignore")
-from utils import process_config_file, get_logger, load_documents, filter_documents
+from utils import process_config_file, get_logger, get_embedding_function, populate_db
 
 
 logger = get_logger(__name__)
@@ -19,6 +19,7 @@ if __name__ == "__main__":
     config = process_config_file("config.conf")
     logger.info(config)
 
+    start = time.perf_counter()
     logger.info("Loading documents...")
     loader = GenericLoader.from_filesystem(
         path=config["data"]["documents_directory"],
@@ -34,16 +35,26 @@ if __name__ == "__main__":
         chunk_overlap=int(config["embedding"]["chunk_overlap"]),
     )
     docs = js_splitter.split_documents(full_docs)
-    logger.info(docs[0])
+    logger.info(f"Documents loaded: {time.perf_counter() - start} seconds")
 
-    embeddings = OpenAIEmbeddings(
-        show_progress_bar=True, chunk_size=4, openai_api_key=openai_api_key
+    start = time.perf_counter()
+    logger.info("creating embedding function...")
+    embedding_function = get_embedding_function(
+        config["embedding"]["type"],
+        model_name=config["embedding"]["model_name"],
+        cache_dir=config["embedding"]["cache_dir"],
+        device=config["embedding"]["device"],
     )
-    db = Chroma(
-        persist_directory=config["vectodb"]["persist_directory"],
-        embedding_function=embeddings,
-    )
-    db = Chroma.from_documents(
-        docs, embeddings, persist_directory=config["vectodb"]["persist_directory"]
+    logger.info(f"Embedding function loaded: {time.perf_counter() - start} seconds")
+
+    logger.info("populating database...")
+    start = time.perf_counter()
+    db = populate_db(
+        config["vectordb"]["type"],
+        docs=docs,
+        embedding_function=embedding_function,
+        persist_directory=config["vectordb"]["persist_directory"],
+        collection_name=config["vectordb"]["collection_name"],
     )
     db.persist()
+    logger.info(f"Database populated: {time.perf_counter() - start} seconds")
